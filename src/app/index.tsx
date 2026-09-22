@@ -1,98 +1,79 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { CurrencyRow } from '@/components/CurrencyRow';
+import { Keypad } from '@/components/Keypad';
+import { DEFAULT_CODES } from '@/data/currencies';
+import { useConverter } from '@/hooks/useConverter';
+import { useRates } from '@/hooks/useRates';
+import { formatAge, formatAmount } from '@/lib/format';
+import { convert } from '@/lib/rateCache';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+export default function ConverterScreen() {
+  const { rates, updatedAt, status, refreshing, error, refresh } = useRates();
+  const { rows, activeCode, setActive, pressDigit, pressDecimal, backspace, clear } =
+    useConverter(rates, DEFAULT_CODES);
+
+  const quoteCode = DEFAULT_CODES.find((code) => code !== activeCode) ?? activeCode;
+  const unitRate = convert(1, activeCode, quoteCode, rates);
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <SafeAreaView className="flex-1 bg-surface-light dark:bg-surface-dark" edges={['top', 'bottom']}>
+      <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+        {rows.map((row) => (
+          <CurrencyRow
+            key={row.code}
+            code={row.code}
+            value={row.value}
+            isActive={row.isActive}
+            onPress={setActive}
+          />
+        ))}
+
+        {status === 'empty' && !refreshing ? (
+          <Text className="px-5 py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
+            No saved rates yet. Connect to the internet once to download them.
+          </Text>
+        ) : null}
+      </ScrollView>
+
+      <Keypad
+        onDigit={pressDigit}
+        onDecimal={pressDecimal}
+        onBackspace={backspace}
+        onClear={clear}
+      />
+
+      <View className="flex-row items-center justify-between border-t border-neutral-200 px-4 py-3 dark:border-neutral-700">
+        <Pressable
+          onPress={refresh}
+          disabled={refreshing}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh rates"
+          className="h-11 w-11 items-center justify-center rounded-full active:opacity-60">
+          {refreshing ? (
+            <ActivityIndicator size="small" color="#1F8A66" />
+          ) : (
+            <Text className="text-xl text-brand-500 dark:text-brand-400">⟳</Text>
+          )}
+        </Pressable>
+
+        <View className="flex-1 items-center">
+          <Text className="text-sm text-neutral-700 dark:text-neutral-300">
+            {unitRate === null
+              ? 'Rate unavailable'
+              : `1 ${activeCode} = ${formatAmount(unitRate, quoteCode)} ${quoteCode}`}
+          </Text>
+          <Text
+            className={`text-xs ${
+              error ? 'text-amber-600 dark:text-amber-400' : 'text-brand-500 dark:text-brand-400'
+            }`}>
+            {error ?? formatAge(updatedAt)}
+          </Text>
+        </View>
+
+        <View className="h-11 w-11" />
+      </View>
+    </SafeAreaView>
   );
 }
-
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});

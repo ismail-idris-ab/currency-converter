@@ -1,9 +1,23 @@
-:root {
-  --font-display:
-    Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
-    Segoe UI Symbol, Noto Color Emoji;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
-  --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
-  --font-serif: Georgia, 'Times New Roman', serif;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+@import "nativewind/theme";
+
+
+@theme {
+  /* Brand accent: deep green, chosen to read as naira and to stay distinct
+     from the competitor's orange. Contrast-checked against both surfaces. */
+  --color-brand-50:  #E8F5EF;
+  --color-brand-400: #2FA37A;
+  --color-brand-500: #1F8A66;
+  --color-brand-600: #16714F;
+  --color-brand-900: #0B3B2E;
+
+  --color-surface-light: #FFFFFF;
+  --color-surface-dark:  #1C1C1E;
+  --color-row-light:     #F5F5F7;
+  --color-row-dark:      #2C2C2E;
+  --color-key-light:     #E9E9EB;
+  --color-key-dark:      #3A3A3C;
 }
