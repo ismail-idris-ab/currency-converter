@@ -35,6 +35,14 @@ export function useConverter(
   const [activeCode, setActiveCode] = useState<string>(codes[0] ?? 'USD');
   const [entry, setEntry] = useState('0');
 
+  /*
+   * The active currency can be removed or swapped out from the picker, which
+   * would otherwise leave this pointing at a row that no longer exists and
+   * blank every conversion. Falling back to the first row keeps the screen
+   * usable without an extra effect to resynchronise state.
+   */
+  const effectiveActive = codes.includes(activeCode) ? activeCode : (codes[0] ?? activeCode);
+
   const setActive = useCallback((code: string) => {
     setActiveCode((previous) => {
       if (previous === code) return previous;
@@ -67,17 +75,17 @@ export function useConverter(
     const source = Number.isFinite(amount) ? amount : 0;
 
     return codes.map((code) => {
-      if (code === activeCode) {
+      if (code === effectiveActive) {
         return { code, value: entry, isActive: true };
       }
-      const converted = convert(source, activeCode, code, rates);
+      const converted = convert(source, effectiveActive, code, rates);
       return {
         code,
         value: converted === null ? '' : String(converted),
         isActive: false,
       };
     });
-  }, [codes, activeCode, entry, rates]);
+  }, [codes, effectiveActive, entry, rates]);
 
-  return { rows, activeCode, entry, setActive, pressDigit, pressDecimal, backspace, clear };
+  return { rows, activeCode: effectiveActive, entry, setActive, pressDigit, pressDecimal, backspace, clear };
 }

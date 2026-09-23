@@ -36,6 +36,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
     "@types/react": "~19.2.2",
+    "circle-flags": "^2.8.3",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.1.18",
     "typescript": "~6.0.3"

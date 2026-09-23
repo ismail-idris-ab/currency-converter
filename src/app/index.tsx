@@ -1,19 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CurrencyRow } from '@/components/CurrencyRow';
 import { Keypad } from '@/components/Keypad';
-import { DEFAULT_CODES } from '@/data/currencies';
 import { useConverter } from '@/hooks/useConverter';
 import { useRates } from '@/hooks/useRates';
 import { formatAge, formatAmount } from '@/lib/format';
 import { convert } from '@/lib/rateCache';
+import { useCurrencyList } from '@/state/currencyList';
 
 export default function ConverterScreen() {
+  const router = useRouter();
+  const { codes, removeCode, canRemove, canAdd } = useCurrencyList();
   const { rates, updatedAt, status, refreshing, error, refresh } = useRates();
   const { rows, activeCode, setActive, pressDigit, pressDecimal, backspace, clear } =
-    useConverter(rates, DEFAULT_CODES);
+    useConverter(rates, codes);
 
   /*
    * The "updated X ago" label is derived at render time, so without a tick it
@@ -26,15 +29,19 @@ export default function ConverterScreen() {
     return () => clearInterval(id);
   }, []);
 
-  const quoteCode = DEFAULT_CODES.find((code) => code !== activeCode) ?? activeCode;
+  const quoteCode = codes.find((code) => code !== activeCode) ?? activeCode;
   const unitRate = convert(1, activeCode, quoteCode, rates);
 
-  /*
-   * SafeAreaView comes from react-native-safe-area-context, which NativeWind
-   * does not style from className without cssInterop registration — so its
-   * flex is set through the style prop and the themed background lives on an
-   * inner View. Without this the rows collapse to zero height.
-   */
+  const openPickerFor = useCallback(
+    (code: string) => {
+      const slot = codes.indexOf(code);
+      router.push(`/currencies?slot=${slot}`);
+    },
+    [codes, router],
+  );
+
+  const openPickerToAdd = useCallback(() => router.push('/currencies'), [router]);
+
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
       <View className="flex-1 bg-surface-light dark:bg-surface-dark">
@@ -45,9 +52,25 @@ export default function ConverterScreen() {
               code={row.code}
               value={row.value}
               isActive={row.isActive}
+              canRemove={canRemove}
               onPress={setActive}
+              onOpenPicker={openPickerFor}
+              onRemove={removeCode}
             />
           ))}
+
+          {canAdd ? (
+            <Pressable
+              onPress={openPickerToAdd}
+              accessibilityRole="button"
+              accessibilityLabel="Add a currency"
+              className="min-h-[56px] flex-row items-center gap-3 px-4 py-3 active:opacity-60">
+              <View className="h-10 w-10 items-center justify-center rounded-full border border-dashed border-brand-500">
+                <Text className="text-xl text-brand-500 dark:text-brand-400">+</Text>
+              </View>
+              <Text className="text-base text-brand-500 dark:text-brand-400">Add currency</Text>
+            </Pressable>
+          ) : null}
 
           {status === 'empty' && !refreshing ? (
             <Text className="px-5 py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
