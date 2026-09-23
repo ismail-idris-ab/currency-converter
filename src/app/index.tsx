@@ -1,23 +1,35 @@
+import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, ToastAndroid, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CurrencyRow } from '@/components/CurrencyRow';
 import { Keypad } from '@/components/Keypad';
+import { OverflowMenu, type OverflowItem } from '@/components/OverflowMenu';
 import { useConverter } from '@/hooks/useConverter';
 import { useRates } from '@/hooks/useRates';
 import { formatAge, formatAmount } from '@/lib/format';
-import { convert } from '@/lib/rateCache';
+import { applyCustomRates, convertWithOverrides, usesCustomRate } from '@/lib/customRates';
 import { tapFeedback } from '@/lib/haptics';
 import { useCurrencyList } from '@/state/currencyList';
+import { useCustomRates } from '@/state/customRates';
 import { useSettings } from '@/state/settings';
 
 export default function ConverterScreen() {
   const router = useRouter();
   const { codes, removeCode, canRemove, canAdd } = useCurrencyList();
   const { settings } = useSettings();
+  const { customRates } = useCustomRates();
   const { rates, updatedAt, status, refreshing, error, refresh } = useRates(settings.autoRefresh);
+
+  /*
+   * Own rates fold into the market table before anything converts, so a rate
+   * the user set for USD-NGN also reaches GBP-NGN. Showing their naira rate
+   * on one row and the official one on the next would read as a bug.
+   */
+  const overrides = useMemo(() => applyCustomRates(rates, customRates), [rates, customRates]);
+
   const {
     rows,
     activeCode,
@@ -28,12 +40,48 @@ export default function ConverterScreen() {
     pressOperator,
     pressEquals,
     pressPercent,
+    pasteText,
     backspace,
     clear,
-  } = useConverter(rates, codes);
+  } = useConverter(overrides, codes);
 
   const [keypadCollapsed, setKeypadCollapsed] = useState(false);
   const toggleKeypad = useCallback(() => setKeypadCollapsed((value) => !value), []);
+
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const activeRow = rows.find((row) => row.isActive);
+
+  const onCopy = useCallback(() => {
+    const value = activeRow?.value ?? '';
+    Clipboard.setStringAsync(value)
+      .then(() => ToastAndroid.show(`Copied ${value}`, ToastAndroid.SHORT))
+      .catch(() => ToastAndroid.show('Could not copy', ToastAndroid.SHORT));
+  }, [activeRow]);
+
+  const onPaste = useCallback(() => {
+    Clipboard.getStringAsync()
+      .then((text) => {
+        // Nothing usable in the clipboard should leave the entry untouched
+        // rather than silently zeroing what the user already typed.
+        if (!/\d/.test(text)) {
+          ToastAndroid.show('Nothing to paste', ToastAndroid.SHORT);
+          return;
+        }
+        pasteText(text);
+      })
+      .catch(() => ToastAndroid.show('Could not paste', ToastAndroid.SHORT));
+  }, [pasteText]);
+
+  const menuItems = useMemo<readonly OverflowItem[]>(
+    () => [
+      { key: 'copy', label: 'Copy', glyph: '⧉', onPress: onCopy },
+      { key: 'paste', label: 'Paste', glyph: '⎘', onPress: onPaste },
+      { key: 'own', label: 'Own rates', glyph: '✎', onPress: () => router.push('/own-rates') },
+      { key: 'settings', label: 'Settings', glyph: '⚙', onPress: () => router.push('/settings') },
+    ],
+    [onCopy, onPaste, router],
+  );
 
   /*
    * The "updated X ago" label is derived at render time, so without a tick it
@@ -47,7 +95,8 @@ export default function ConverterScreen() {
   }, []);
 
   const quoteCode = codes.find((code) => code !== activeCode) ?? activeCode;
-  const unitRate = convert(1, activeCode, quoteCode, rates);
+  const unitRate = convertWithOverrides(1, activeCode, quoteCode, overrides);
+  const rateIsOwn = usesCustomRate(activeCode, quoteCode, overrides);
 
   const openPickerFor = useCallback(
     (code: string) => {
@@ -159,22 +208,36 @@ export default function ConverterScreen() {
                 ? 'Rate unavailable'
                 : `1 ${activeCode} = ${formatAmount(unitRate, quoteCode, settings.grouping)} ${quoteCode}`}
             </Text>
+            {/*
+              A rate the user typed must never be mistaken for the market's.
+              The badge replaces the age, because "your rate" has no age that
+              means anything to them.
+            */}
             <Text
               className={`text-xs ${
-                error ? 'text-amber-600 dark:text-amber-400' : 'text-brand-500 dark:text-brand-400'
+                rateIsOwn
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : error
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-brand-500 dark:text-brand-400'
               }`}>
-              {error ?? formatAge(updatedAt, now)}
+              {rateIsOwn ? 'Your rate' : (error ?? formatAge(updatedAt, now))}
             </Text>
           </View>
 
           <Pressable
-            onPress={() => router.push('/settings')}
+            onPress={() => setMenuOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel="Settings"
+            accessibilityLabel="More options"
             className="h-11 w-11 items-center justify-center rounded-full active:opacity-60">
-            <Text className="text-xl text-brand-500 dark:text-brand-400">⚙</Text>
+            <Text className="text-xl text-brand-500 dark:text-brand-400">⋮</Text>
           </Pressable>
         </View>
+        <OverflowMenu
+          visible={menuOpen}
+          items={menuItems}
+          onDismiss={() => setMenuOpen(false)}
+        />
       </View>
     </SafeAreaView>
   );

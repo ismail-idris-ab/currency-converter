@@ -131,3 +131,24 @@ export function expressionOf(state: CalcState): string {
 export function valueOf(state: CalcState): number {
   return toNumber(state.entry);
 }
+
+/**
+ * Replaces the entry from pasted text. Clipboard content is untrusted, so it
+ * is stripped to digits and a single decimal point, then bounded to the same
+ * limits as typed input — a pasted "1,580.00 NGN" becomes 1580.00 rather than
+ * being rejected outright.
+ */
+export function setEntryFromText(state: CalcState, raw: string): CalcState {
+  const stripped = raw.replace(/[^0-9.]/g, '');
+  if (stripped === '') return state;
+
+  const [head, ...tail] = stripped.split('.');
+  const whole = head.slice(0, 12);
+  const fraction = tail.join('').slice(0, 8);
+
+  let entry = tail.length > 0 ? `${whole}.${fraction}` : whole;
+  if (entry.startsWith('.')) entry = `0${entry}`;
+  if (entry === '' || entry === '.') return state;
+
+  return { ...state, entry, settled: false };
+}

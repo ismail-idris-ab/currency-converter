@@ -8,6 +8,7 @@ import {
   pressDecimal as calcDecimal,
   pressDigit as calcDigit,
   pressEquals as calcEquals,
+  setEntryFromText as calcSetEntry,
   pressOperator as calcOperator,
   pressPercent as calcPercent,
   expressionOf,
@@ -15,7 +16,7 @@ import {
   type CalcState,
   type Operator,
 } from '@/lib/calculator';
-import { convert } from '@/lib/rateCache';
+import { convertWithOverrides, type RateOverrides } from '@/lib/customRates';
 
 export interface ConverterRow {
   readonly code: string;
@@ -35,6 +36,7 @@ export interface UseConverterResult {
   readonly pressOperator: (operator: Operator) => void;
   readonly pressEquals: () => void;
   readonly pressPercent: () => void;
+  readonly pasteText: (text: string) => void;
   readonly backspace: () => void;
   readonly clear: () => void;
 }
@@ -45,7 +47,7 @@ export interface UseConverterResult {
  * typing — converting to a number too early makes the keypad feel broken.
  */
 export function useConverter(
-  rates: Readonly<Record<string, number>>,
+  overrides: RateOverrides,
   codes: readonly string[] = DEFAULT_CODES,
 ): UseConverterResult {
   const [activeCode, setActiveCode] = useState<string>(codes[0] ?? 'USD');
@@ -69,6 +71,7 @@ export function useConverter(
   );
   const pressEquals = useCallback(() => setCalc(calcEquals), []);
   const pressPercent = useCallback(() => setCalc(calcPercent), []);
+  const pasteText = useCallback((text: string) => setCalc((c) => calcSetEntry(c, text)), []);
   const backspace = useCallback(() => setCalc(calcBackspace), []);
   const clear = useCallback(() => setCalc(calcClear), []);
 
@@ -79,14 +82,14 @@ export function useConverter(
       if (code === effectiveActive) {
         return { code, value: calc.entry, isActive: true };
       }
-      const converted = convert(source, effectiveActive, code, rates);
+      const converted = convertWithOverrides(source, effectiveActive, code, overrides);
       return {
         code,
         value: converted === null ? '' : String(converted),
         isActive: false,
       };
     });
-  }, [codes, effectiveActive, calc, rates]);
+  }, [codes, effectiveActive, calc, overrides]);
 
   return {
     rows,
@@ -99,6 +102,7 @@ export function useConverter(
     pressOperator,
     pressEquals,
     pressPercent,
+    pasteText,
     backspace,
     clear,
   };
