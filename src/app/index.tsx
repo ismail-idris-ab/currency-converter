@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CurrencyRow } from '@/components/CurrencyRow';
@@ -15,8 +15,22 @@ export default function ConverterScreen() {
   const router = useRouter();
   const { codes, removeCode, canRemove, canAdd } = useCurrencyList();
   const { rates, updatedAt, status, refreshing, error, refresh } = useRates();
-  const { rows, activeCode, setActive, pressDigit, pressDecimal, backspace, clear } =
-    useConverter(rates, codes);
+  const {
+    rows,
+    activeCode,
+    expression,
+    setActive,
+    pressDigit,
+    pressDecimal,
+    pressOperator,
+    pressEquals,
+    pressPercent,
+    backspace,
+    clear,
+  } = useConverter(rates, codes);
+
+  const [keypadCollapsed, setKeypadCollapsed] = useState(false);
+  const toggleKeypad = useCallback(() => setKeypadCollapsed((value) => !value), []);
 
   /*
    * The "updated X ago" label is derived at render time, so without a tick it
@@ -42,6 +56,34 @@ export default function ConverterScreen() {
 
   const openPickerToAdd = useCallback(() => router.push('/currencies'), [router]);
 
+  /*
+   * A single long press can deliver more than one onLongPress: the first
+   * removal re-renders the list, and the still-held gesture reaches whichever
+   * row moved into that position. Observed on device removing two currencies
+   * at once. The guard drops repeats, and the prompt means a destructive
+   * action is never silent.
+   */
+  const removalPending = useRef(false);
+  const confirmRemove = useCallback(
+    (code: string) => {
+      if (removalPending.current) return;
+      removalPending.current = true;
+
+      Alert.alert('Remove currency', `Remove ${code} from the converter?`, [
+        { text: 'Cancel', style: 'cancel', onPress: () => (removalPending.current = false) },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            removeCode(code);
+            removalPending.current = false;
+          },
+        },
+      ]);
+    },
+    [removeCode],
+  );
+
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
       <View className="flex-1 bg-surface-light dark:bg-surface-dark">
@@ -55,7 +97,7 @@ export default function ConverterScreen() {
               canRemove={canRemove}
               onPress={setActive}
               onOpenPicker={openPickerFor}
-              onRemove={removeCode}
+              onRemove={confirmRemove}
             />
           ))}
 
@@ -64,7 +106,7 @@ export default function ConverterScreen() {
               onPress={openPickerToAdd}
               accessibilityRole="button"
               accessibilityLabel="Add a currency"
-              className="min-h-[56px] flex-row items-center gap-3 px-4 py-3 active:opacity-60">
+              className="min-h-14 flex-row items-center gap-3 px-4 py-3 active:opacity-60">
               <View className="h-10 w-10 items-center justify-center rounded-full border border-dashed border-brand-500">
                 <Text className="text-xl text-brand-500 dark:text-brand-400">+</Text>
               </View>
@@ -80,8 +122,14 @@ export default function ConverterScreen() {
         </ScrollView>
 
         <Keypad
+          expression={expression}
+          collapsed={keypadCollapsed}
+          onToggleCollapsed={toggleKeypad}
           onDigit={pressDigit}
           onDecimal={pressDecimal}
+          onOperator={pressOperator}
+          onEquals={pressEquals}
+          onPercent={pressPercent}
           onBackspace={backspace}
           onClear={clear}
         />

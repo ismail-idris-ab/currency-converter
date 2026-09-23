@@ -52,16 +52,15 @@ function CurrencyRowComponent({
         isActive ? 'bg-row-light dark:bg-row-dark' : 'bg-transparent'
       }`}>
       {/*
-        The nested pressable would otherwise swallow the long press, because a
-        child without onLongPress still consumes the gesture — so removal has
-        to be wired here too, not just on the parent row.
+        Tapping here changes the currency; long press is deliberately NOT wired
+        on this child. A nested pressable makes the gesture ambiguous — on
+        device it sometimes fell through to onPress and opened the picker — so
+        removal lives on the row body alone, where it behaves consistently.
       */}
       <Pressable
         onPress={() => onOpenPicker(code)}
-        onLongPress={canRemove ? () => onRemove(code) : undefined}
         accessibilityRole="button"
         accessibilityLabel={`Change ${code}`}
-        accessibilityHint={canRemove ? 'Long press to remove this currency' : undefined}
         className="min-h-[44px] flex-row items-center gap-3 pr-2 active:opacity-60">
         <Flag flagId={currency?.flagId ?? ''} code={code} size={40} />
         <View>

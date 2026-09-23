@@ -1,10 +1,21 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { DEFAULT_CODES } from '@/data/currencies';
+import {
+  INITIAL_CALC,
+  backspace as calcBackspace,
+  clear as calcClear,
+  pressDecimal as calcDecimal,
+  pressDigit as calcDigit,
+  pressEquals as calcEquals,
+  pressOperator as calcOperator,
+  pressPercent as calcPercent,
+  expressionOf,
+  valueOf,
+  type CalcState,
+  type Operator,
+} from '@/lib/calculator';
 import { convert } from '@/lib/rateCache';
-
-/** Digits with at most one decimal point, max 12 significant characters. */
-const ENTRY_PATTERN = /^\d{0,12}(\.\d{0,8})?$/;
 
 export interface ConverterRow {
   readonly code: string;
@@ -16,16 +27,21 @@ export interface UseConverterResult {
   readonly rows: readonly ConverterRow[];
   readonly activeCode: string;
   readonly entry: string;
+  /** "1000 +" while an operation is pending, empty otherwise. */
+  readonly expression: string;
   readonly setActive: (code: string) => void;
   readonly pressDigit: (digit: string) => void;
   readonly pressDecimal: () => void;
+  readonly pressOperator: (operator: Operator) => void;
+  readonly pressEquals: () => void;
+  readonly pressPercent: () => void;
   readonly backspace: () => void;
   readonly clear: () => void;
 }
 
 /**
- * Owns the active currency and the raw keypad entry, and derives every other
- * row from it. Entry is held as a string so trailing "." and "0" survive
+ * Owns the active currency and the calculator state, and derives every other
+ * row from it. The entry stays a string so trailing "." and "0" survive
  * typing — converting to a number too early makes the keypad feel broken.
  */
 export function useConverter(
@@ -33,7 +49,7 @@ export function useConverter(
   codes: readonly string[] = DEFAULT_CODES,
 ): UseConverterResult {
   const [activeCode, setActiveCode] = useState<string>(codes[0] ?? 'USD');
-  const [entry, setEntry] = useState('0');
+  const [calc, setCalc] = useState<CalcState>(INITIAL_CALC);
 
   /*
    * The active currency can be removed or swapped out from the picker, which
@@ -43,40 +59,25 @@ export function useConverter(
    */
   const effectiveActive = codes.includes(activeCode) ? activeCode : (codes[0] ?? activeCode);
 
-  const setActive = useCallback((code: string) => {
-    setActiveCode((previous) => {
-      if (previous === code) return previous;
-      // Switching source keeps the on-screen number of the newly active row,
-      // which is what the displayed value already showed the user.
-      return code;
-    });
-  }, []);
+  const setActive = useCallback((code: string) => setActiveCode(code), []);
 
-  const pressDigit = useCallback((digit: string) => {
-    if (!/^\d$/.test(digit)) return;
-    setEntry((current) => {
-      const next = current === '0' ? digit : current + digit;
-      return ENTRY_PATTERN.test(next) ? next : current;
-    });
-  }, []);
-
-  const pressDecimal = useCallback(() => {
-    setEntry((current) => (current.includes('.') ? current : `${current}.`));
-  }, []);
-
-  const backspace = useCallback(() => {
-    setEntry((current) => (current.length <= 1 ? '0' : current.slice(0, -1)));
-  }, []);
-
-  const clear = useCallback(() => setEntry('0'), []);
+  const pressDigit = useCallback((digit: string) => setCalc((c) => calcDigit(c, digit)), []);
+  const pressDecimal = useCallback(() => setCalc(calcDecimal), []);
+  const pressOperator = useCallback(
+    (operator: Operator) => setCalc((c) => calcOperator(c, operator)),
+    [],
+  );
+  const pressEquals = useCallback(() => setCalc(calcEquals), []);
+  const pressPercent = useCallback(() => setCalc(calcPercent), []);
+  const backspace = useCallback(() => setCalc(calcBackspace), []);
+  const clear = useCallback(() => setCalc(calcClear), []);
 
   const rows = useMemo<readonly ConverterRow[]>(() => {
-    const amount = Number.parseFloat(entry);
-    const source = Number.isFinite(amount) ? amount : 0;
+    const source = valueOf(calc);
 
     return codes.map((code) => {
       if (code === effectiveActive) {
-        return { code, value: entry, isActive: true };
+        return { code, value: calc.entry, isActive: true };
       }
       const converted = convert(source, effectiveActive, code, rates);
       return {
@@ -85,7 +86,20 @@ export function useConverter(
         isActive: false,
       };
     });
-  }, [codes, effectiveActive, entry, rates]);
+  }, [codes, effectiveActive, calc, rates]);
 
-  return { rows, activeCode: effectiveActive, entry, setActive, pressDigit, pressDecimal, backspace, clear };
+  return {
+    rows,
+    activeCode: effectiveActive,
+    entry: calc.entry,
+    expression: expressionOf(calc),
+    setActive,
+    pressDigit,
+    pressDecimal,
+    pressOperator,
+    pressEquals,
+    pressPercent,
+    backspace,
+    clear,
+  };
 }
