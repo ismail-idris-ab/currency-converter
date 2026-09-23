@@ -23,7 +23,7 @@ export async function saveRates(snapshot: RateSnapshot, source: RateSource = 'of
     for (const [code, rate] of entries) {
       await db.runAsync(
         'INSERT INTO rates (code, source, rate, updated_at) VALUES (?, ?, ?, ?)',
-        [code, source, rate, snapshot.fetchedAt],
+        [code, source, rate, snapshot.publishedAt],
       );
     }
   });
@@ -51,7 +51,7 @@ export async function loadRates(source: RateSource = 'official'): Promise<Cached
 export async function refreshOfficialRates(): Promise<CachedRates> {
   const snapshot = await fetchFiatRates();
   await saveRates(snapshot, 'official');
-  return { rates: snapshot.rates, updatedAt: snapshot.fetchedAt };
+  return { rates: snapshot.rates, updatedAt: snapshot.publishedAt };
 }
 
 /**

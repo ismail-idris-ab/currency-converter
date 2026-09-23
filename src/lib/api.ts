@@ -14,8 +14,14 @@ const TIMEOUT_MS = 10_000;
 export interface RateSnapshot {
   /** Units of the keyed currency per 1 USD. */
   readonly rates: Readonly<Record<string, number>>;
-  /** Epoch millis the provider published this data. */
-  readonly fetchedAt: number;
+  /**
+   * Epoch millis the PROVIDER published this data — not when we received it.
+   * React Native's fetch sits on OkHttp, which keeps an HTTP response cache,
+   * so a request can succeed offline by replaying a stale cached body. Using
+   * the provider's own timestamp means such a reply ages honestly instead of
+   * being relabelled as fresh.
+   */
+  readonly publishedAt: number;
   readonly provider: 'exchangerate-api' | 'frankfurter';
 }
 
@@ -36,6 +42,9 @@ async function fetchJson(url: string): Promise<unknown> {
   try {
     const response = await fetch(url, {
       signal: controller.signal,
+      // Bypass OkHttp's response cache: this app keeps its own cache in
+      // SQLite, and a silent HTTP replay would hide that we are offline.
+      cache: 'no-store',
       headers: { Accept: 'application/json' },
     });
     if (!response.ok) {
@@ -67,18 +76,45 @@ function parseRateMap(value: unknown): Record<string, number> | null {
   return Object.keys(out).length > 0 ? out : null;
 }
 
-function readPrimary(body: unknown): Record<string, number> | null {
+/** Rejects timestamps that are absent, unparseable, or implausibly far out. */
+function sanePublishedAt(candidate: number | null): number {
+  const now = Date.now();
+  if (candidate === null || !Number.isFinite(candidate)) return now;
+  // A provider clock more than a day ahead, or older than 30 days, is junk.
+  if (candidate > now + 86_400_000) return now;
+  if (candidate < now - 30 * 86_400_000) return candidate;
+  return candidate;
+}
+
+interface Parsed {
+  readonly rates: Record<string, number>;
+  readonly publishedAt: number;
+}
+
+function readPrimary(body: unknown): Parsed | null {
   if (typeof body !== 'object' || body === null) return null;
   const record = body as Record<string, unknown>;
   if (record.result !== 'success') return null;
-  return parseRateMap(record.rates);
+
+  const rates = parseRateMap(record.rates);
+  if (!rates) return null;
+
+  const unix = record.time_last_update_unix;
+  const publishedAt = typeof unix === 'number' && Number.isFinite(unix) ? unix * 1000 : null;
+  return { rates, publishedAt: sanePublishedAt(publishedAt) };
 }
 
-function readFallback(body: unknown): Record<string, number> | null {
+function readFallback(body: unknown): Parsed | null {
   if (typeof body !== 'object' || body === null) return null;
   const record = body as Record<string, unknown>;
   if (record.base !== 'USD') return null;
-  return parseRateMap(record.rates);
+
+  const rates = parseRateMap(record.rates);
+  if (!rates) return null;
+
+  // Frankfurter dates are "YYYY-MM-DD" for the quoted business day.
+  const date = typeof record.date === 'string' ? Date.parse(`${record.date}T00:00:00Z`) : NaN;
+  return { rates, publishedAt: sanePublishedAt(Number.isNaN(date) ? null : date) };
 }
 
 async function attempt<T>(task: () => Promise<T>): Promise<T> {
@@ -99,9 +135,13 @@ export async function fetchFiatRates(): Promise<RateSnapshot> {
 
   try {
     const body = await attempt(() => fetchJson(PRIMARY_URL));
-    const rates = readPrimary(body);
-    if (rates) {
-      return { rates: { ...rates, USD: 1 }, fetchedAt: Date.now(), provider: 'exchangerate-api' };
+    const parsed = readPrimary(body);
+    if (parsed) {
+      return {
+        rates: { ...parsed.rates, USD: 1 },
+        publishedAt: parsed.publishedAt,
+        provider: 'exchangerate-api',
+      };
     }
     primaryError = new RateFetchError('Primary provider returned an unrecognised payload');
   } catch (error) {
@@ -110,15 +150,19 @@ export async function fetchFiatRates(): Promise<RateSnapshot> {
 
   try {
     const body = await attempt(() => fetchJson(FALLBACK_URL));
-    const rates = readFallback(body);
-    if (rates) {
-      return { rates: { ...rates, USD: 1 }, fetchedAt: Date.now(), provider: 'frankfurter' };
+    const parsed = readFallback(body);
+    if (parsed) {
+      return {
+        rates: { ...parsed.rates, USD: 1 },
+        publishedAt: parsed.publishedAt,
+        provider: 'frankfurter',
+      };
     }
     throw new RateFetchError('Fallback provider returned an unrecognised payload');
   } catch (fallbackError) {
-    throw new RateFetchError(
-      'Could not reach any exchange-rate provider',
-      { primaryError, fallbackError },
-    );
+    throw new RateFetchError('Could not reach any exchange-rate provider', {
+      primaryError,
+      fallbackError,
+    });
   }
 }
