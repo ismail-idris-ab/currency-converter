@@ -9,12 +9,15 @@ import { useConverter } from '@/hooks/useConverter';
 import { useRates } from '@/hooks/useRates';
 import { formatAge, formatAmount } from '@/lib/format';
 import { convert } from '@/lib/rateCache';
+import { tapFeedback } from '@/lib/haptics';
 import { useCurrencyList } from '@/state/currencyList';
+import { useSettings } from '@/state/settings';
 
 export default function ConverterScreen() {
   const router = useRouter();
   const { codes, removeCode, canRemove, canAdd } = useCurrencyList();
-  const { rates, updatedAt, status, refreshing, error, refresh } = useRates();
+  const { settings } = useSettings();
+  const { rates, updatedAt, status, refreshing, error, refresh } = useRates(settings.autoRefresh);
   const {
     rows,
     activeCode,
@@ -95,6 +98,7 @@ export default function ConverterScreen() {
               value={row.value}
               isActive={row.isActive}
               canRemove={canRemove}
+              grouping={settings.grouping}
               onPress={setActive}
               onOpenPicker={openPickerFor}
               onRemove={confirmRemove}
@@ -123,6 +127,7 @@ export default function ConverterScreen() {
 
         <Keypad
           expression={expression}
+          haptics={settings.haptics}
           collapsed={keypadCollapsed}
           onToggleCollapsed={toggleKeypad}
           onDigit={pressDigit}
@@ -152,7 +157,7 @@ export default function ConverterScreen() {
             <Text className="text-sm text-neutral-700 dark:text-neutral-300">
               {unitRate === null
                 ? 'Rate unavailable'
-                : `1 ${activeCode} = ${formatAmount(unitRate, quoteCode)} ${quoteCode}`}
+                : `1 ${activeCode} = ${formatAmount(unitRate, quoteCode, settings.grouping)} ${quoteCode}`}
             </Text>
             <Text
               className={`text-xs ${
@@ -162,7 +167,13 @@ export default function ConverterScreen() {
             </Text>
           </View>
 
-          <View className="h-11 w-11" />
+          <Pressable
+            onPress={() => router.push('/settings')}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            className="h-11 w-11 items-center justify-center rounded-full active:opacity-60">
+            <Text className="text-xl text-brand-500 dark:text-brand-400">⚙</Text>
+          </Pressable>
         </View>
       </View>
     </SafeAreaView>

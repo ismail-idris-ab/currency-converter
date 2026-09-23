@@ -6,6 +6,7 @@ import { useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { CurrencyListProvider } from '@/state/currencyList';
+import { SettingsProvider } from '@/state/settings';
 
 export default function RootLayout() {
   const scheme = useColorScheme();
@@ -13,7 +14,8 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <CurrencyListProvider>
+      <SettingsProvider>
+        <CurrencyListProvider>
         <StatusBar style={dark ? 'light' : 'dark'} />
         <Stack
           screenOptions={{
@@ -22,8 +24,10 @@ export default function RootLayout() {
           }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="currencies" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
         </Stack>
-      </CurrencyListProvider>
+        </CurrencyListProvider>
+      </SettingsProvider>
     </SafeAreaProvider>
   );
 }

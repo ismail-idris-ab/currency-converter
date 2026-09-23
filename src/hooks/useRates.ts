@@ -20,7 +20,7 @@ const EMPTY: CachedRates = { rates: {}, updatedAt: null };
  * Loads cached rates first so the screen renders offline, then refreshes in
  * the background. A failed refresh never discards cached data.
  */
-export function useRates(): UseRatesResult {
+export function useRates(autoRefresh = true): UseRatesResult {
   const [cached, setCached] = useState<CachedRates>(EMPTY);
   const [status, setStatus] = useState<RatesStatus>('loading');
   const [refreshing, setRefreshing] = useState(false);
@@ -58,13 +58,15 @@ export function useRates(): UseRatesResult {
       } catch {
         if (active) setStatus('error');
       }
-      if (active) await refresh();
+      // A user who turned automatic refresh off still gets cached rates on
+      // open; only the network call is skipped.
+      if (active && autoRefresh) await refresh();
     })();
 
     return () => {
       active = false;
     };
-  }, [refresh]);
+  }, [refresh, autoRefresh]);
 
   return { rates: cached.rates, updatedAt: cached.updatedAt, status, refreshing, error, refresh };
 }

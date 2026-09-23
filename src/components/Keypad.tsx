@@ -2,9 +2,11 @@ import { memo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import type { Operator } from '@/lib/calculator';
+import { tapFeedback } from '@/lib/haptics';
 
 interface KeypadProps {
   readonly expression: string;
+  readonly haptics: boolean;
   readonly collapsed: boolean;
   readonly onToggleCollapsed: () => void;
   readonly onDigit: (digit: string) => void;
@@ -70,6 +72,7 @@ const ROWS: readonly (readonly KeyDef[])[] = [
 
 function KeypadComponent({
   expression,
+  haptics,
   collapsed,
   onToggleCollapsed,
   onDigit,
@@ -81,6 +84,8 @@ function KeypadComponent({
   onClear,
 }: KeypadProps) {
   const run = (action: KeyAction) => () => {
+    tapFeedback(haptics);
+
     switch (action.kind) {
       case 'digit':
         // "00" is two presses; pressDigit is a functional update so they compose.

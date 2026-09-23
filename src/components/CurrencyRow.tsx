@@ -11,6 +11,7 @@ interface CurrencyRowProps {
   readonly value: string;
   readonly isActive: boolean;
   readonly canRemove: boolean;
+  readonly grouping: boolean;
   readonly onPress: (code: string) => void;
   readonly onOpenPicker: (code: string) => void;
   readonly onRemove: (code: string) => void;
@@ -29,6 +30,7 @@ function CurrencyRowComponent({
   value,
   isActive,
   canRemove,
+  grouping,
   onPress,
   onOpenPicker,
   onRemove,
@@ -38,7 +40,7 @@ function CurrencyRowComponent({
     ? value
     : value === ''
       ? '—'
-      : formatAmount(Number.parseFloat(value), code);
+      : formatAmount(Number.parseFloat(value), code, grouping);
 
   return (
     <Pressable
