@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Flag } from '@/components/Flag';
 import { CURRENCIES, type Currency } from '@/data/currencies';
+import { noteCurrencySelection } from '@/lib/ads';
 import { loadUsage, recordUsage } from '@/lib/usage';
 import { useCurrencyList } from '@/state/currencyList';
 
@@ -77,6 +78,9 @@ export default function CurrenciesScreen() {
       // Usage is recorded for ordering; a failure here must not block the
       // selection the user just made.
       void recordUsage(code).catch(() => undefined);
+      // Arms the interstitial trigger. The converter decides whether to act
+      // on it, because only it knows if a calculation is half-finished.
+      noteCurrencySelection();
       router.back();
     },
     [params.slot, replaceCode, addCode, router],

@@ -4,12 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, ToastAndroid, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AdBanner } from '@/components/AdBanner';
 import { CurrencyRow } from '@/components/CurrencyRow';
 import { Keypad } from '@/components/Keypad';
 import { OverflowMenu, type OverflowItem } from '@/components/OverflowMenu';
 import { StatusBanner, type BannerTone } from '@/components/StatusBanner';
 import { useConverter } from '@/hooks/useConverter';
+import { useInterstitial } from '@/hooks/useInterstitial';
 import { useRates } from '@/hooks/useRates';
+import { resetSelectionTrigger, selectionTriggerReady } from '@/lib/ads';
 import { formatAge, formatAmount, isStale } from '@/lib/format';
 import { applyCustomRates, convertWithOverrides, usesCustomRate } from '@/lib/customRates';
 import { useCurrencyList } from '@/state/currencyList';
@@ -129,6 +132,31 @@ export default function ConverterScreen() {
     return null;
   }, [refreshing, status, error, updatedAt, now]);
 
+  /*
+   * The picker arms the trigger; the decision happens here because only this
+   * screen knows whether a calculation is unfinished. An unfinished
+   * expression keeps the trigger armed for the next quiet moment rather than
+   * burning it, and anything the policy refuses disarms it so the check does
+   * not run again on every selection.
+   */
+  const { showIfAllowed } = useInterstitial();
+  const midCalculation = expression !== '';
+  useEffect(() => {
+    if (!selectionTriggerReady()) return;
+    if (midCalculation) return;
+
+    let active = true;
+    showIfAllowed(false)
+      .then((shown) => {
+        if (active && !shown) resetSelectionTrigger();
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [codes, midCalculation, showIfAllowed]);
+
   const quoteCode = codes.find((code) => code !== activeCode) ?? activeCode;
   const unitRate = convertWithOverrides(1, activeCode, quoteCode, overrides);
   const rateIsOwn = usesCustomRate(activeCode, quoteCode, overrides);
@@ -226,6 +254,8 @@ export default function ConverterScreen() {
           onBackspace={backspace}
           onClear={clear}
         />
+
+        <AdBanner />
 
         <View className="flex-row items-center justify-between border-t border-neutral-200 px-4 py-3 dark:border-neutral-700">
           <Pressable

@@ -2,9 +2,11 @@ import '@/global.css';
 
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { startAds } from '@/lib/ads';
 import { CurrencyListProvider } from '@/state/currencyList';
 import { CustomRatesProvider } from '@/state/customRates';
 import { SettingsProvider } from '@/state/settings';
@@ -12,6 +14,15 @@ import { SettingsProvider } from '@/state/settings';
 export default function RootLayout() {
   const scheme = useColorScheme();
   const dark = scheme === 'dark';
+
+  /*
+   * Consent is gathered and the ad SDK started once per launch, off the
+   * render path. Nothing here is awaited by the UI: the converter must open
+   * and convert whether or not ads ever initialise.
+   */
+  useEffect(() => {
+    void startAds();
+  }, []);
 
   return (
     <SafeAreaProvider>
