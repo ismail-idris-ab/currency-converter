@@ -30,10 +30,20 @@
         {
           "backgroundColor": "#0B3B2E",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 120
+          "imageWidth": 200
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

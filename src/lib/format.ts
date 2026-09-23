@@ -41,3 +41,14 @@ export function formatAge(updatedAt: number | null, now = Date.now()): string {
   const days = Math.floor(hours / 24);
   return `${days} ${days === 1 ? 'day' : 'days'} ago`;
 }
+
+/**
+ * Rates older than a day are still worth converting with, but the user has to
+ * be told: a day-old naira number can be far off. The threshold is generous
+ * because the providers themselves publish roughly daily.
+ */
+export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+export function isStale(updatedAt: number | null, now = Date.now()): boolean {
+  return updatedAt !== null && now - updatedAt > STALE_AFTER_MS;
+}

@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo/ui": "~57.0.19",
     "expo": "~57.0.24",
+    "expo-build-properties": "~57.0.21",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.19",
     "expo-device": "~57.0.2",
@@ -37,7 +38,10 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@types/react": "~19.2.2",
     "circle-flags": "^2.8.3",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~57.0.2",
     "postcss": "^8.5.28",
+    "sharp": "^0.35.4",
     "tailwindcss": "^4.1.18",
     "typescript": "~6.0.3"
   },

@@ -41,9 +41,28 @@ export function CustomRatesProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Hydrates once. The work is awaited before any setState, and the flag stops
+  // a slow read from writing into an unmounted provider.
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let active = true;
+
+    (async () => {
+      try {
+        const stored = await loadCustomRates();
+        if (active) setCustomRates(stored);
+      } catch {
+        // An unreadable table means no overrides, which is the safe direction:
+        // the app falls back to market rates rather than refusing to convert.
+        if (active) setCustomRates([]);
+      } finally {
+        if (active) setHydrated(true);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const save = useCallback(
     async (base: string, quote: string, rate: number) => {

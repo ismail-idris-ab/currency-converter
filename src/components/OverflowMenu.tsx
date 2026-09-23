@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface OverflowItem {
