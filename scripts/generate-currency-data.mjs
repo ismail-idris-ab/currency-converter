@@ -62,8 +62,11 @@ export function getCurrency(code: string): Currency | undefined {
   return BY_CODE.get(code);
 }
 
-/** Currencies shown on a fresh install, per product decision. */
-export const DEFAULT_CODES: readonly string[] = ['USD', 'NGN', 'EUR'];
+/**
+ * Currencies shown on a fresh install, per product decision. USD sits first
+ * because it is the row the keypad types into.
+ */
+export const DEFAULT_CODES: readonly string[] = ['USD', 'NGN'];
 `;
 
 writeFileSync(new URL('../src/data/currencies.ts', import.meta.url), header + rows + footer);
