@@ -1,9 +1,10 @@
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import { useCallback } from 'react';
-import { Alert, Linking, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Linking, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MAX_NGN_ADJUSTMENT, sanitizeAdjustment } from '@/lib/officialRate';
 import { clearUsage } from '@/lib/usage';
 import { useSettings, type ThemePreference } from '@/state/settings';
 
@@ -51,6 +52,53 @@ function ToggleRow({
   );
 }
 
+/**
+ * Whole naira only. The field keeps its own text so a half-typed value is not
+ * rewritten under the user's fingers, and commits a sanitised number on every
+ * keystroke so leaving the screen never loses what they typed.
+ */
+function AdjustmentRow({
+  value,
+  onChange,
+}: {
+  readonly value: number;
+  readonly onChange: (next: number) => void;
+}) {
+  const [text, setText] = useState(() => String(value));
+
+  const onChangeText = useCallback(
+    (next: string) => {
+      const digits = next.replace(/[^0-9]/g, '').slice(0, 6);
+      setText(digits);
+      onChange(digits === '' ? 0 : sanitizeAdjustment(Number.parseInt(digits, 10)));
+    },
+    [onChange],
+  );
+
+  // An empty field reads as zero while typing; on blur it says so.
+  const onBlur = useCallback(() => setText((current) => (current === '' ? '0' : current)), []);
+
+  return (
+    <View className="min-h-14 flex-row items-center justify-between px-4 py-3">
+      <View className="flex-1 pr-4">
+        <Text className="text-base text-neutral-900 dark:text-neutral-100">Naira adjustment</Text>
+        <Text className="text-xs text-neutral-500 dark:text-neutral-400">
+          Added to the official dollar rate, which is rounded up to whole naira
+        </Text>
+      </View>
+      <TextInput
+        value={text}
+        onChangeText={onChangeText}
+        onBlur={onBlur}
+        keyboardType="number-pad"
+        maxLength={6}
+        accessibilityLabel={`Naira adjustment, up to ${MAX_NGN_ADJUSTMENT}`}
+        className="min-h-11 w-24 rounded-xl border border-neutral-300 px-3 text-right text-base text-neutral-900 dark:border-neutral-600 dark:text-neutral-100"
+      />
+    </View>
+  );
+}
+
 export default function SettingsScreen() {
   const router = useRouter();
   const { settings, update } = useSettings();
@@ -73,6 +121,11 @@ export default function SettingsScreen() {
       ],
     );
   }, []);
+
+  const onChangeAdjustment = useCallback(
+    (ngnAdjustment: number) => update({ ngnAdjustment }),
+    [update],
+  );
 
   const onOpenPrivacy = useCallback(() => {
     Linking.openURL(PRIVACY_URL).catch(() =>
@@ -132,6 +185,10 @@ export default function SettingsScreen() {
             hint="Check for new rates when the app opens"
             value={settings.autoRefresh}
             onChange={(autoRefresh) => update({ autoRefresh })}
+          />
+          <AdjustmentRow
+            value={settings.ngnAdjustment}
+            onChange={onChangeAdjustment}
           />
 
           <SectionTitle>Display</SectionTitle>

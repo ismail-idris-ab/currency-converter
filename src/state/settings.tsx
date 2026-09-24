@@ -10,6 +10,7 @@ import {
 import { Appearance } from 'react-native';
 
 import { getDb } from '@/lib/db';
+import { DEFAULT_NGN_ADJUSTMENT, sanitizeAdjustment } from '@/lib/officialRate';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -18,6 +19,8 @@ export interface Settings {
   readonly autoRefresh: boolean;
   readonly grouping: boolean;
   readonly haptics: boolean;
+  /** Naira added to the rounded-up official USD->NGN rate. */
+  readonly ngnAdjustment: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -25,6 +28,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoRefresh: true,
   grouping: true,
   haptics: true,
+  ngnAdjustment: DEFAULT_NGN_ADJUSTMENT,
 };
 
 const KEYS: Readonly<Record<keyof Settings, string>> = {
@@ -32,6 +36,7 @@ const KEYS: Readonly<Record<keyof Settings, string>> = {
   autoRefresh: 'settings.autoRefresh',
   grouping: 'settings.grouping',
   haptics: 'settings.haptics',
+  ngnAdjustment: 'settings.ngnAdjustment',
 };
 
 interface State {
@@ -83,8 +88,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       try {
         const db = await getDb();
         const rows = await db.getAllAsync<{ key: string; value: string }>(
-          'SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?)',
-          [KEYS.theme, KEYS.autoRefresh, KEYS.grouping, KEYS.haptics],
+          'SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?)',
+          [KEYS.theme, KEYS.autoRefresh, KEYS.grouping, KEYS.haptics, KEYS.ngnAdjustment],
         );
 
         const stored: Record<string, string> = {};
@@ -97,6 +102,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           autoRefresh: stored[KEYS.autoRefresh] ? stored[KEYS.autoRefresh] === '1' : DEFAULT_SETTINGS.autoRefresh,
           grouping: stored[KEYS.grouping] ? stored[KEYS.grouping] === '1' : DEFAULT_SETTINGS.grouping,
           haptics: stored[KEYS.haptics] ? stored[KEYS.haptics] === '1' : DEFAULT_SETTINGS.haptics,
+          // A row written by an older build, or edited by hand, must not be
+          // able to put a nonsense multiplier in front of every naira pair.
+          ngnAdjustment: stored[KEYS.ngnAdjustment]
+            ? sanitizeAdjustment(Number.parseInt(stored[KEYS.ngnAdjustment], 10))
+            : DEFAULT_SETTINGS.ngnAdjustment,
         };
 
         if (!active) return;
@@ -116,6 +126,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const update = useCallback((patch: Partial<Settings>) => {
     if (patch.theme) applyTheme(patch.theme);
+    if (patch.ngnAdjustment !== undefined) {
+      patch = { ...patch, ngnAdjustment: sanitizeAdjustment(patch.ngnAdjustment) };
+    }
     dispatch({ type: 'set', patch });
 
     (async () => {

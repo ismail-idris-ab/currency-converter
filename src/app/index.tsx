@@ -15,6 +15,7 @@ import { useRates } from '@/hooks/useRates';
 import { resetSelectionTrigger, selectionTriggerReady } from '@/lib/ads';
 import { formatAge, formatAmount, isStale } from '@/lib/format';
 import { applyCustomRates, convertWithOverrides, usesCustomRate } from '@/lib/customRates';
+import { applyNgnAdjustment } from '@/lib/officialRate';
 import { useCurrencyList } from '@/state/currencyList';
 import { useCustomRates } from '@/state/customRates';
 import { useSettings } from '@/state/settings';
@@ -27,11 +28,22 @@ export default function ConverterScreen() {
   const { rates, updatedAt, status, refreshing, error, refresh } = useRates(settings.autoRefresh);
 
   /*
-   * Own rates fold into the market table before anything converts, so a rate
-   * the user set for USD-NGN also reaches GBP-NGN. Showing their naira rate
-   * on one row and the official one on the next would read as a bug.
+   * The naira adjustment lands on the USD-based table first, so every naira
+   * pair carries it, and own rates fold in after so a rate the user typed
+   * still wins outright.
+   *
+   * Own rates spread the same way: a rate set for USD-NGN also reaches
+   * GBP-NGN, because showing their naira rate on one row and the official one
+   * on the next would read as a bug.
    */
-  const overrides = useMemo(() => applyCustomRates(rates, customRates), [rates, customRates]);
+  const adjusted = useMemo(
+    () => applyNgnAdjustment(rates, settings.ngnAdjustment),
+    [rates, settings.ngnAdjustment],
+  );
+  const overrides = useMemo(
+    () => applyCustomRates(adjusted, customRates),
+    [adjusted, customRates],
+  );
 
   const {
     rows,
