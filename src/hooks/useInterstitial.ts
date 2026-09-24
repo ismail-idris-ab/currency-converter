@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { AdEventType, InterstitialAd } from 'react-native-google-mobile-ads';
 
 import {
@@ -8,6 +8,7 @@ import {
   readQuota,
   recordShown,
   resetSelectionTrigger,
+  subscribeAdsStarted,
 } from '@/lib/ads';
 
 export interface UseInterstitialResult {
@@ -27,8 +28,15 @@ export function useInterstitial(): UseInterstitialResult {
   const loadedRef = useRef(false);
   const shownThisSessionRef = useRef(false);
 
+  /*
+   * Consent and SDK init finish seconds after mount, so this waits for the
+   * SDK rather than reading a flag once: an earlier version built nothing at
+   * all and no interstitial ever appeared for the whole session.
+   */
+  const ready = useSyncExternalStore(subscribeAdsStarted, adsStarted, () => false);
+
   useEffect(() => {
-    if (!adsStarted()) return;
+    if (!ready) return;
 
     const ad = InterstitialAd.createForAdRequest(INTERSTITIAL_UNIT_ID);
     adRef.current = ad;
@@ -53,7 +61,7 @@ export function useInterstitial(): UseInterstitialResult {
       offClosed();
       adRef.current = null;
     };
-  }, []);
+  }, [ready]);
 
   const showIfAllowed = useCallback(async (midCalculation: boolean) => {
     const ad = adRef.current;

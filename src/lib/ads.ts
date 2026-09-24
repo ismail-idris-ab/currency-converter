@@ -24,6 +24,26 @@ export const INTERSTITIAL_UNIT_ID = unit(
 );
 
 let started = false;
+let starting = false;
+
+/*
+ * Consent plus SDK init takes seconds, so anything that builds an ad object
+ * at mount would find the SDK cold and silently do nothing for the rest of
+ * the session. Readiness is therefore observable, not a one-shot read.
+ */
+const readyListeners = new Set<() => void>();
+
+export function subscribeAdsStarted(listener: () => void): () => void {
+  readyListeners.add(listener);
+  return () => {
+    readyListeners.delete(listener);
+  };
+}
+
+function markStarted(): void {
+  started = true;
+  for (const listener of readyListeners) listener();
+}
 
 /**
  * Gathers UMP consent, then starts the SDK only if ads may be requested.
@@ -32,6 +52,9 @@ let started = false;
  * work with no ads at all.
  */
 export async function startAds(): Promise<boolean> {
+  if (started || starting) return started;
+  starting = true;
+
   try {
     await AdsConsent.gatherConsent();
   } catch {
@@ -40,13 +63,15 @@ export async function startAds(): Promise<boolean> {
 
   try {
     const { canRequestAds } = await AdsConsent.getConsentInfo();
-    if (!canRequestAds || started) return started;
+    if (!canRequestAds) return false;
 
-    started = true;
     await mobileAds().initialize();
+    markStarted();
     return true;
   } catch {
     return false;
+  } finally {
+    starting = false;
   }
 }
 
