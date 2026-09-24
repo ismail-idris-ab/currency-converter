@@ -122,10 +122,13 @@ export function applyCustomRates(
     } else if (entry.quote === 'USD') {
       nextRates[entry.base] = 1 / entry.rate;
       affected.add(entry.base);
-    } else {
-      affected.add(entry.base);
-      affected.add(entry.quote);
     }
+    /*
+     * A pair with no USD leg deliberately does NOT join `affected`. It changes
+     * that one pair and nothing else, and `pairs` already covers it. Marking
+     * its currencies here made GBP->AMD claim "Your rate" on the strength of a
+     * GBP->NGN entry that had no bearing on the number shown.
+     */
   }
 
   return { pairs, rates: nextRates, affected };
