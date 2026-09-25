@@ -140,10 +140,21 @@ Expected outcome: rated for everyone / PEGI 3.
 
 | Asset | Requirement | Status |
 |---|---|---|
-| App icon | 512×512 PNG, 32-bit | Have the source art; needs export at this size |
-| Feature graphic | 1024×500 PNG or JPEG | **Not made** |
-| Phone screenshots | 2–8, 16:9 or 9:16, min 320px | **Not made** — capture converter, picker, own rates, settings |
+| App icon | 512×512 PNG, 32-bit | `store/icon-512.png` |
+| Feature graphic | 1024×500 PNG or JPEG | `store/feature-graphic.png` |
+| Phone screenshots | 2–8, 16:9 or 9:16, min 320px | `store/screenshots/` — **drafts**, see below |
 | Tablet screenshots | Optional | Skipping — phone-only app |
+
+Both graphics come from `node scripts/generate-store-graphics.mjs`, which
+draws the same vector mark as the launcher icon.
+
+**DECISION — the screenshots are drafts, not final.** They were captured from
+a development build, so the ad slot shows Google's "Test Ad" placeholder.
+Uploading that looks unfinished and misrepresents the app. Retake them from a
+production build once the real ad units are live, or crop the banner out.
+They are otherwise correct: 1080×2340, covering the converter with a
+conversion in progress, the searchable picker with usage sorting, own rates,
+and settings.
 
 ## Release notes (500 characters maximum)
 
