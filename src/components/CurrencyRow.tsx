@@ -22,8 +22,11 @@ interface CurrencyRowProps {
  * partial input like "1." is never rewritten under them; inactive rows show a
  * formatted conversion.
  *
- * Tapping the flag/code block swaps that currency; tapping the rest of the row
- * makes it the source. Long-press removes it.
+ * Tapping the flag/code block swaps that currency. Tapping the rest of the row
+ * makes it the source, and tapping it again once it is already the source
+ * opens the picker too: the active row's tap otherwise does nothing, and
+ * people reach for the row rather than the flag when they want to switch.
+ * Long-press removes it.
  */
 function CurrencyRowComponent({
   code,
@@ -44,12 +47,18 @@ function CurrencyRowComponent({
 
   return (
     <Pressable
-      onPress={() => onPress(code)}
+      onPress={() => (isActive ? onOpenPicker(code) : onPress(code))}
       onLongPress={canRemove ? () => onRemove(code) : undefined}
       accessibilityRole="button"
       accessibilityState={{ selected: isActive }}
       accessibilityLabel={`${currency?.name ?? code}, ${display}`}
-      accessibilityHint={canRemove ? 'Long press to remove this currency' : undefined}
+      accessibilityHint={
+        isActive
+          ? 'Tap to change this currency. Long press to remove it.'
+          : canRemove
+            ? 'Tap to type in this currency. Long press to remove it.'
+            : 'Tap to type in this currency'
+      }
       className={`min-h-[72px] flex-row items-center justify-between px-4 py-3 ${
         isActive ? 'bg-row-light dark:bg-row-dark' : 'bg-transparent'
       }`}>
