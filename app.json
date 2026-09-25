@@ -54,6 +54,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "aiiman-tech",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "cabc33e3-5768-4b0c-ac5e-e68265c0b0d5"
+      }
     }
   },
   "react-native-google-mobile-ads": {

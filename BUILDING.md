@@ -58,10 +58,10 @@ environment:
 Create them once per project:
 
 ```bash
-npx eas-cli@latest env:create --environment production \
+npx eas-cli@latest env:set --environment production \
   --name EXPO_PUBLIC_ADMOB_BANNER --value ca-app-pub-8701520764224100/7173428290
 
-npx eas-cli@latest env:create --environment production \
+npx eas-cli@latest env:set --environment production \
   --name EXPO_PUBLIC_ADMOB_INTERSTITIAL --value ca-app-pub-8701520764224100/6981856601
 ```
 
