@@ -28,12 +28,12 @@ const written = [
   await png('icon.png', iconSvg(1024), 1024),
   // Adaptive foreground: Android crops to a circle and animates the layer, so
   // the face sits inside the 66% safe zone with transparency around it.
-  await png('android-icon-foreground.png', layerSvg({ scale: 0.50 }), 1024),
+  await png('android-icon-foreground.png', layerSvg({ scale: 0.80 }), 1024),
   // Themed icons are tinted by the launcher, so this layer is shape only.
-  await png('android-icon-monochrome.png', layerSvg({ scale: 0.50, mono: true }), 1024),
+  await png('android-icon-monochrome.png', layerSvg({ scale: 0.80, mono: true }), 1024),
   // Splash draws on the brand background set in app.json. Android 12's splash
   // API masks the image to a circle, so the face stays well inside it.
-  await png('splash-icon.png', layerSvg({ scale: 0.52 }), 512),
+  await png('splash-icon.png', layerSvg({ scale: 0.70 }), 512),
 ];
 
 await writeFile(path.join(OUT, 'icon.svg'), iconSvg(512));
