@@ -47,9 +47,10 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-8701520764224100~4007016934"
+          "androidAppId": "ca-app-pub-4579724938393555~3692898574"
         }
-      ]
+      ],
+      "./plugins/withUploadSigning"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -64,6 +65,6 @@
     }
   },
   "react-native-google-mobile-ads": {
-    "android_app_id": "ca-app-pub-8701520764224100~4007016934"
+    "android_app_id": "ca-app-pub-4579724938393555~3692898574"
   }
 }

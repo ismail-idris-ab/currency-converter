@@ -41,3 +41,10 @@ example
 # generated native folders
 /ios
 /android
+
+# Signing keys and their passwords. Never commit these: the keystore is the
+# app's identity on Play and cannot be replaced once published.
+/credentials
+
+# Build artifacts.
+/dist
